@@ -61,8 +61,8 @@ export function verifySignature(
     
     try {
       // Try to decode as base58 first
-      signatureBytes = bs58.base58ToBytes(signature);
-      pubKeyBytes = bs58.base58ToBytes(publicKey);
+      signatureBytes = bs58.decode(signature);
+      pubKeyBytes = bs58.decode(publicKey);
       
       console.log('Decoded from base58:', { 
         signatureBytesLength: signatureBytes.length, 
@@ -76,7 +76,7 @@ export function verifySignature(
         try {
           // This looks like base64, not base58
           signatureBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
-          pubKeyBytes = bs58.base58ToBytes(publicKey);
+          pubKeyBytes = bs58.decode(publicKey);
           console.log('Converted base64 signature:', { signatureBytesLength: signatureBytes.length });
         } catch (base64Error) {
           console.error('Base64 decode failed:', base64Error);
@@ -114,5 +114,5 @@ export function verifySignature(
 
 // Helper function for base58 decoding
 export function decodeBase58(str: string): Uint8Array {
-  return bs58.base58ToBytes(str);
+  return bs58.decode(str);
 }

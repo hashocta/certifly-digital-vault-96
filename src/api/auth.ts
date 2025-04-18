@@ -22,7 +22,9 @@ router.post('/login', async (c) => {
     console.log('Login attempt:', { 
       message: message,
       publicKey: publicKey,
-      signatureLength: signature?.length
+      signatureLength: signature?.length,
+      signatureType: typeof signature,
+      signatureSample: signature?.substring(0, 20)
     });
     
     if (!message || !signature || !publicKey) {
