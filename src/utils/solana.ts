@@ -3,7 +3,7 @@ import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { Env } from '../types';
 import { ApiError } from './errors';
 import * as nacl from 'tweetnacl';
-import * as base58 from 'base58-js';
+import * as bs58 from 'base58-js';
 
 /**
  * Create a Solana connection from environment
@@ -50,15 +50,35 @@ export function verifySignature(
   publicKey: string
 ): boolean {
   try {
-    const messageBytes = new TextEncoder().encode(message);
-    const signatureBytes = base58.base58ToBytes(signature);
-    const pubKeyBytes = base58.base58ToBytes(publicKey);
+    console.log('Verifying signature:', { message, signature, publicKey });
     
-    return nacl.sign.detached.verify(
+    // Convert message to bytes
+    const messageBytes = new TextEncoder().encode(message);
+    
+    // Decode signature and public key from base58
+    const signatureBytes = bs58.decode(signature);
+    const pubKeyBytes = bs58.decode(publicKey);
+    
+    // Debug signature verification data
+    console.log('Signature bytes length:', signatureBytes.length);
+    console.log('Public key bytes length:', pubKeyBytes.length);
+    
+    // For base64 signatures, they need to be converted differently
+    let finalSignatureBytes = signatureBytes;
+    if (signature.includes('+') || signature.includes('/') || signature.endsWith('==')) {
+      // This looks like base64, not base58
+      finalSignatureBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
+      console.log('Converting from base64 signature:', finalSignatureBytes.length);
+    }
+    
+    const result = nacl.sign.detached.verify(
       messageBytes,
-      signatureBytes,
+      finalSignatureBytes,
       pubKeyBytes
     );
+    
+    console.log('Signature verification result:', result);
+    return result;
   } catch (error) {
     console.error('Signature verification error:', error);
     return false;
@@ -67,5 +87,5 @@ export function verifySignature(
 
 // Helper function for base58 decoding
 export function decodeBase58(str: string): Uint8Array {
-  return base58.base58ToBytes(str);
+  return bs58.decode(str);
 }
