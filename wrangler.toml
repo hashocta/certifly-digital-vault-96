@@ -1,0 +1,37 @@
+
+name = "certifly-api-worker"
+main = "src/index.ts"
+compatibility_date = "2023-12-01"
+compatibility_flags = ["nodejs_compat"]
+usage_model = "bundled"
+node_compat = true
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "certifly_db"
+database_id = "your_d1_database_id"
+
+# R2 Bucket binding
+[[r2_buckets]]
+binding = "CERT_BUCKET"
+bucket_name = "certificates"
+preview_bucket_name = "certificates-dev"
+
+# Environment variables
+[vars]
+LOG_LEVEL = "info"
+VERIFY_API_KEY = "HzpydHqGADi77bsjb2klH6ZzJjP6emOk"
+BUNDLR_URL = "https://node1.bundlr.network"
+BUNDLR_CURRENCY = "solana"
+SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com"
+
+# Content types
+[build]
+command = "npm run build"
+
+[build.upload]
+format = "service-worker"
+
+[site]
+bucket = "./public"
