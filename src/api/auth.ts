@@ -21,7 +21,7 @@ router.post('/login', async (c) => {
     
     console.log('Login attempt:', { 
       message: message,
-      publicKeyLength: publicKey?.length,
+      publicKey: publicKey,
       signatureLength: signature?.length
     });
     
@@ -31,8 +31,15 @@ router.post('/login', async (c) => {
     
     // Verify signature
     const isValidSignature = verifySignature(message, signature, publicKey);
+    
+    console.log('Signature verification result:', isValidSignature);
+    
     if (!isValidSignature) {
-      console.error('Invalid signature detected:', { message, publicKey });
+      console.error('Invalid signature detected:', { 
+        message, 
+        publicKey,
+        signaturePrefix: signature?.substring(0, 10) + '...' 
+      });
       throw new ApiError(401, 'Invalid signature');
     }
     

@@ -56,24 +56,51 @@ export function verifySignature(
     const messageBytes = new TextEncoder().encode(message);
     
     // Decode signature and public key from base58
-    const signatureBytes = bs58.decode(signature);
-    const pubKeyBytes = bs58.decode(publicKey);
+    let signatureBytes: Uint8Array;
+    let pubKeyBytes: Uint8Array;
     
-    // Debug signature verification data
-    console.log('Signature bytes length:', signatureBytes.length);
-    console.log('Public key bytes length:', pubKeyBytes.length);
+    try {
+      // Try to decode as base58 first
+      signatureBytes = bs58.base58ToBytes(signature);
+      pubKeyBytes = bs58.base58ToBytes(publicKey);
+      
+      console.log('Decoded from base58:', { 
+        signatureBytesLength: signatureBytes.length, 
+        pubKeyBytesLength: pubKeyBytes.length 
+      });
+    } catch (e) {
+      console.error('Base58 decode failed:', e);
+      
+      // Try base64 decode for signature if base58 fails
+      if (signature.includes('+') || signature.includes('/') || signature.endsWith('==')) {
+        try {
+          // This looks like base64, not base58
+          signatureBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
+          pubKeyBytes = bs58.base58ToBytes(publicKey);
+          console.log('Converted base64 signature:', { signatureBytesLength: signatureBytes.length });
+        } catch (base64Error) {
+          console.error('Base64 decode failed:', base64Error);
+          return false;
+        }
+      } else {
+        return false;
+      }
+    }
     
-    // For base64 signatures, they need to be converted differently
-    let finalSignatureBytes = signatureBytes;
-    if (signature.includes('+') || signature.includes('/') || signature.endsWith('==')) {
-      // This looks like base64, not base58
-      finalSignatureBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
-      console.log('Converting from base64 signature:', finalSignatureBytes.length);
+    // Verify signature requirements
+    if (signatureBytes.length !== 64) {
+      console.error('Invalid signature length:', signatureBytes.length);
+      return false;
+    }
+    
+    if (pubKeyBytes.length !== 32) {
+      console.error('Invalid public key length:', pubKeyBytes.length);
+      return false;
     }
     
     const result = nacl.sign.detached.verify(
       messageBytes,
-      finalSignatureBytes,
+      signatureBytes,
       pubKeyBytes
     );
     
@@ -87,5 +114,5 @@ export function verifySignature(
 
 // Helper function for base58 decoding
 export function decodeBase58(str: string): Uint8Array {
-  return bs58.decode(str);
+  return bs58.base58ToBytes(str);
 }
