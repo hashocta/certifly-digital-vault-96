@@ -1,73 +1,417 @@
-# Welcome to your Lovable project
 
-## Project info
+# Tokenized Certificate Platform API
 
-**URL**: https://lovable.dev/projects/d25b0210-4160-449a-830c-30a28ef39026
+This API serves as the backend for a Tokenized Certificate Platform built on Cloudflare Workers. It provides endpoints for user authentication, profile management, certificate handling, verification, and NFT minting on Solana.
 
-## How can I edit this code?
+## Core Technologies
 
-There are several ways of editing your application.
+- **Cloudflare Workers**: Serverless compute platform
+- **Cloudflare D1**: SQLite database for metadata storage
+- **Cloudflare R2**: Object storage for files
+- **Bundlr**: Permanent storage on Arweave
+- **Metaplex**: NFT minting on Solana
+- **Hono**: Lightweight web framework
 
-**Use Lovable**
+## API Endpoints
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/d25b0210-4160-449a-830c-30a28ef39026) and start prompting.
+### Authentication
 
-Changes made via Lovable will be committed automatically to this repo.
+#### POST /api/auth/login
+Authenticate using a Solana wallet signature.
 
-**Use your preferred IDE**
+**Request**
+```json
+{
+  "message": "Login to Certifly - Nonce: 1234567890",
+  "signature": "base58_encoded_signature",
+  "publicKey": "base58_encoded_public_key"
+}
+```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+**Response**
+```json
+{
+  "token": "jwt_token_string",
+  "user": {
+    "id": "user_id",
+    "email": "user@example.com",
+    "full_name": "John Doe",
+    "wallet_address": "solana_wallet_address",
+    "created_at": "2025-04-18T10:00:00Z",
+    "updated_at": "2025-04-18T10:00:00Z"
+  }
+}
+```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+#### GET /api/auth/me
+Get the current authenticated user's profile.
 
-Follow these steps:
+**Headers**
+```
+Authorization: Bearer <jwt_token>
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+**Response**
+```json
+{
+  "id": "user_id",
+  "email": "user@example.com",
+  "full_name": "John Doe",
+  "wallet_address": "solana_wallet_address",
+  "created_at": "2025-04-18T10:00:00Z",
+  "updated_at": "2025-04-18T10:00:00Z"
+}
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Profile Management
 
-# Step 3: Install the necessary dependencies.
-npm i
+#### GET /api/profile
+Get user profile information.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+**Headers**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response**
+```json
+{
+  "id": "user_id",
+  "email": "user@example.com",
+  "full_name": "John Doe",
+  "wallet_address": "solana_wallet_address",
+  "created_at": "2025-04-18T10:00:00Z",
+  "updated_at": "2025-04-18T10:00:00Z"
+}
+```
+
+#### PUT /api/profile
+Update user profile information.
+
+**Headers**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Request**
+```json
+{
+  "fullName": "John Doe",
+  "email": "john@example.com",
+  "photoFileName": "profile.jpg"
+}
+```
+
+**Response**
+```json
+{
+  "user": {
+    "id": "user_id",
+    "email": "john@example.com",
+    "full_name": "John Doe",
+    "wallet_address": "solana_wallet_address",
+    "created_at": "2025-04-18T10:00:00Z",
+    "updated_at": "2025-04-18T10:00:00Z"
+  },
+  "uploadUrl": "https://r2.example.com/presigned-url", // Only if photoFileName was provided
+  "publicUrl": "https://r2.example.com/profiles/user_id/profile.jpg" // Only if photoFileName was provided
+}
+```
+
+### Certificates
+
+#### GET /api/certificates
+List all certificates for the authenticated user.
+
+**Headers**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response**
+```json
+{
+  "certificates": [
+    {
+      "id": "cert_id",
+      "title": "Web Development Certificate",
+      "institution_name": "Tech Academy",
+      "program_name": "Full Stack Development",
+      "issue_date": "2025-04-18",
+      "certificate_url": "https://r2.example.com/certificates/user_id/cert_id.pdf",
+      "verification_status": "verified",
+      "verification_details": "{\"status\":\"success\",\"verified_at\":\"2025-04-18T10:00:00Z\"}",
+      "arweave_url": "https://arweave.net/tx_id",
+      "nft_mint_address": "solana_nft_address",
+      "created_at": "2025-04-18T10:00:00Z",
+      "updated_at": "2025-04-18T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### POST /api/certificates
+Create a new certificate.
+
+**Headers**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Request (Two-step process)**
+
+1. Initial request to get upload URL:
+```json
+{
+  "title": "Web Development Certificate",
+  "institutionName": "Tech Academy",
+  "programName": "Full Stack Development",
+  "issueDate": "2025-04-18",
+  "fileName": "certificate.pdf",
+  "fileType": "application/pdf",
+  "requestUploadUrl": true
+}
+```
+
+**Response**
+```json
+{
+  "id": "cert_id",
+  "uploadUrl": "https://r2.example.com/presigned-url",
+  "expiresAt": 1713434400000,
+  "certificateUrl": "https://r2.example.com/certificates/user_id/cert_id.pdf",
+  "verificationUrl": "https://certifly.in/verify/cert_id"
+}
+```
+
+2. Direct upload (for Worker-based processing):
+```json
+{
+  "title": "Web Development Certificate",
+  "institutionName": "Tech Academy",
+  "programName": "Full Stack Development",
+  "issueDate": "2025-04-18",
+  "fileName": "certificate.pdf",
+  "fileType": "application/pdf"
+}
+```
+Plus the file data in the request body.
+
+**Response**
+```json
+{
+  "id": "cert_id",
+  "certificateUrl": "https://r2.example.com/certificates/user_id/cert_id.pdf",
+  "verificationUrl": "https://certifly.in/verify/cert_id"
+}
+```
+
+#### GET /api/certificates/:id
+Get a specific certificate.
+
+**Headers**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response**
+```json
+{
+  "id": "cert_id",
+  "title": "Web Development Certificate",
+  "institution_name": "Tech Academy",
+  "program_name": "Full Stack Development",
+  "issue_date": "2025-04-18",
+  "certificate_url": "https://r2.example.com/certificates/user_id/cert_id.pdf",
+  "verification_status": "verified",
+  "verification_details": "{\"status\":\"success\",\"verified_at\":\"2025-04-18T10:00:00Z\"}",
+  "arweave_url": "https://arweave.net/tx_id",
+  "nft_mint_address": "solana_nft_address",
+  "created_at": "2025-04-18T10:00:00Z",
+  "updated_at": "2025-04-18T10:00:00Z"
+}
+```
+
+#### DELETE /api/certificates/:id
+Delete a certificate.
+
+**Headers**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response**
+```json
+{
+  "success": true
+}
+```
+
+### Verification
+
+#### GET /api/verify/:id
+Get verification status for a certificate.
+
+**Headers**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response**
+```json
+{
+  "id": "cert_id",
+  "status": "verified",
+  "details": {
+    "verified_at": "2025-04-18T10:00:00Z",
+    "verifier": "verification_service",
+    "additional_info": "Certificate authenticity confirmed"
+  }
+}
+```
+
+#### POST /api/verify/:id
+Initiate verification for a certificate.
+
+**Headers**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response**
+```json
+{
+  "id": "cert_id",
+  "status": "pending",
+  "details": {
+    "initiated_at": "2025-04-18T10:00:00Z",
+    "estimated_completion": "2025-04-18T10:01:00Z"
+  }
+}
+```
+
+### NFT Minting
+
+#### POST /api/mint/:id
+Mint a verified certificate as an NFT.
+
+**Headers**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response**
+```json
+{
+  "id": "cert_id",
+  "mintAddress": "solana_nft_address",
+  "arweaveUrl": "https://arweave.net/tx_id"
+}
+```
+
+## Error Responses
+
+All endpoints may return the following error responses:
+
+### 400 Bad Request
+```json
+{
+  "error": "Invalid input: detailed error message"
+}
+```
+
+### 401 Unauthorized
+```json
+{
+  "error": "Unauthorized"
+}
+```
+
+### 403 Forbidden
+```json
+{
+  "error": "Access denied"
+}
+```
+
+### 404 Not Found
+```json
+{
+  "error": "Resource not found"
+}
+```
+
+### 500 Internal Server Error
+```json
+{
+  "error": "Internal Server Error"
+}
+```
+
+## Development Setup
+
+1. Clone the repository
+2. Copy `.env.example` to `.env` and fill in the required values
+3. Install dependencies:
+```bash
+npm install
+```
+
+4. Start the development server:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Environment Variables
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+See `.env.example` for required environment variables:
 
-**Use GitHub Codespaces**
+```env
+# Cloudflare configuration
+R2_ACCESS_KEY_ID=your_r2_access_key_id
+R2_SECRET_ACCESS_KEY=your_r2_secret_access_key
+R2_ACCOUNT_ID=your_cloudflare_account_id
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Bundlr configuration
+BUNDLR_URL=https://node1.bundlr.network
+BUNDLR_CURRENCY=solana
+BUNDLR_PRIVATE_KEY=your_solana_private_key_base58_encoded
 
-## What technologies are used for this project?
+# Solana configuration
+SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
 
-This project is built with:
+# Authentication
+JWT_SECRET=your_jwt_secret_min_32_chars_long
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+# External APIs
+VERIFY_API_KEY=your_verification_api_key
 
-## How can I deploy this project?
+# Logging
+LOG_LEVEL=info
+```
 
-Simply open [Lovable](https://lovable.dev/projects/d25b0210-4160-449a-830c-30a28ef39026) and click on Share -> Publish.
+## Testing
 
-## Can I connect a custom domain to my Lovable project?
+Run the test suite:
+```bash
+npm test
+```
 
-Yes, you can!
+## Deployment
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Deploy to Cloudflare Pages:
+```bash
+npm run deploy
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
