@@ -51,8 +51,8 @@ export function verifySignature(
 ): boolean {
   try {
     const messageBytes = new TextEncoder().encode(message);
-    const signatureBytes = base58.decode(signature);
-    const pubKeyBytes = base58.decode(publicKey);
+    const signatureBytes = base58.base58ToBytes(signature);
+    const pubKeyBytes = base58.base58ToBytes(publicKey);
     
     return nacl.sign.detached.verify(
       messageBytes,
@@ -67,5 +67,5 @@ export function verifySignature(
 
 // Helper function for base58 decoding
 export function decodeBase58(str: string): Uint8Array {
-  return base58.decode(str);
+  return base58.base58ToBytes(str);
 }

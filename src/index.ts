@@ -31,7 +31,7 @@ app.use('*', cors({
 
 // JWT middleware for protected routes
 const jwtMiddleware = jwt({
-  secret: async (c) => c.env.JWT_SECRET
+  secret: (c) => c.env.JWT_SECRET
 });
 
 // Route configuration
