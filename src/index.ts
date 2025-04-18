@@ -22,7 +22,11 @@ app.use('*', logger());
 app.use('*', secureHeaders());
 app.use('*', prettyJSON());
 app.use('*', cors({
-  origin: '*', // Adjust for production
+  origin: (origin) => {
+    // You can whitelist specific origins or return the requesting origin
+    // For development & testing purposes, we'll return the requesting origin
+    return origin || 'https://legendary-baklava-e1b705.netlify.app';
+  },
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
   maxAge: 86400,
